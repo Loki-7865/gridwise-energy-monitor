@@ -46,6 +46,12 @@ IS_DEMO = DATA_MODE == "demo"
 STALE_AFTER_SECONDS = int(os.getenv("STALE_AFTER_SECONDS", "10"))
 MAX_HISTORY_POINTS = 1000
 MAX_HISTORY_RAW_ROWS = 50_000
+MAX_JSON_BODY_BYTES = 64 * 1024
+
+
+class PayloadTooLarge(ValueError):
+    pass
+
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "127.0.0.1"),
@@ -403,6 +409,8 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0:
             raise ValueError("Request body is empty")
+        if length > MAX_JSON_BODY_BYTES:
+            raise PayloadTooLarge("Request body exceeds the 64 KB limit")
         data = json.loads(self.rfile.read(length))
         if not isinstance(data, dict):
             raise ValueError("Request body must be a JSON object")
@@ -468,6 +476,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 scenario = self._read_json().get("scenario", "")
+            except PayloadTooLarge as exc:
+                self._json({"error": str(exc)}, 413)
+                return
             except (ValueError, json.JSONDecodeError) as exc:
                 self._json({"error": str(exc)}, 400)
                 return
@@ -484,6 +495,9 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             raw_json = self._read_json()
+        except PayloadTooLarge as exc:
+            self._json({"error": str(exc)}, 413)
+            return
         except (ValueError, json.JSONDecodeError) as exc:
             self._json({"error": str(exc)}, 400)
             return
