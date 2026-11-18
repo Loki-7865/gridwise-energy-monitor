@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment variables / secrets
+.env
+server/.env
+firmware/esp32_energy_monitor/secrets.h
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# React build tooling
+frontend/node_modules/
+frontend/dist/
+
+# Legacy local SQLite file (the application uses MySQL in Docker).
+server/gridwise.db

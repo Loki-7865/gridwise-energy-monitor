@@ -1,0 +1,59 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: gridwise_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: gridwise
+      MYSQL_USER: gridwise_user
+      MYSQL_PASSWORD: gridwise_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - gridwise_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "gridwise_user", "-pgridwise_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: gridwise_app
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: gridwise
+      DB_USER: gridwise_user
+      DB_PASSWORD: gridwise_pass
+      DATA_MODE: ${GRIDWISE_DATA_MODE:-demo}
+      SERVER_PORT: 8000
+      STALE_AFTER_SECONDS: 10
+    ports:
+      # Avoids colliding with an existing local development server on port 8000.
+      - "${GRIDWISE_APP_PORT:-8080}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  simulator:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: gridwise_simulator
+    restart: unless-stopped
+    command: ["python", "server/simulator.py", "--url", "http://app:8000/data", "--interval-seconds", "2"]
+    environment:
+      DEMO_SEED: 20261120
+    depends_on:
+      app:
+        condition: service_started
+
+volumes:
+  gridwise_data:
+    driver: local

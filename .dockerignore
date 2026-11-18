@@ -1,0 +1,11 @@
+.git
+.venv
+server/.venv
+server/gridwise.db
+server/.env
+__pycache__
+*.py[cod]
+.DS_Store
+firmware/esp32_energy_monitor/secrets.h
+frontend/node_modules
+frontend/dist

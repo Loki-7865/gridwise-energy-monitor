@@ -1,0 +1,17 @@
+/* Separate hash-routed portal pages. Only the selected direct child is shown. */
+.route-page { display: none; }
+.page-overview > .history-section { display: none; }
+.page-live > :not(.live-page),
+.page-trends > :not(.trends-page),
+.page-history > :not(.history-section) { display: none; }
+.page-live > .live-page,
+.page-trends > .trends-page,
+.page-history > .history-section { display: block; }
+
+.route-page .page-heading { margin-top: 18px; }
+.live-dashboard { margin-top: 22px; }
+.trend-summary { margin-top: 22px; }
+
+@media (max-width: 760px) {
+  .route-page .page-heading { margin-top: 4px; }
+}
