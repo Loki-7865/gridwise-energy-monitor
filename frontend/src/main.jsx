@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useId } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import "./pages.css";
@@ -42,6 +42,11 @@ function Icon({ name, size = 18 }) {
 }
 
 function LineChart({ points, metric, height = 280 }) {
+  // Each chart instance needs unique SVG gradient IDs.
+  const chartId = useId().replace(/:/g, "");
+  const fillId = `${chartId}-chartFill`;
+  const strokeId = `${chartId}-chartStroke`;
+
   const values = points.map((point) => Number(point[metric] || 0));
   if (!values.length) return <div className="chart-empty">Waiting for telemetry</div>;
   const min = Math.min(...values);
@@ -66,12 +71,26 @@ function LineChart({ points, metric, height = 280 }) {
       <div className="chart-key"><span>{labels[metric]}</span><strong>{number(values.at(-1), metric === "current" ? 3 : metric === "energy" ? 5 : 1)} {units[metric]}</strong></div>
       <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={`${labels[metric]} trend`}>
         <defs>
-          <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#4777ff" stopOpacity=".35"/><stop offset="1" stopColor="#4777ff" stopOpacity="0"/></linearGradient>
-          <linearGradient id="chartStroke" x1="0" x2="1"><stop stopColor="#a8b9ff"/><stop offset="1" stopColor="#4d7dff"/></linearGradient>
+          <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
+            <stop stopColor="#4777ff" stopOpacity=".35" />
+            <stop offset="1" stopColor="#4777ff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={strokeId} x1="0" x2="1">
+            <stop stopColor="#a8b9ff" />
+            <stop offset="1" stopColor="#4d7dff" />
+          </linearGradient>
         </defs>
         {[0, 1, 2, 3].map((lineIndex) => <line key={lineIndex} x1={pad.left} x2={width - pad.right} y1={pad.top + innerHeight * lineIndex / 3} y2={pad.top + innerHeight * lineIndex / 3} className="grid-line" />)}
-        <path d={fill} className="chart-fill" />
-        <path d={line} className="chart-line" />
+        <path
+          d={fill}
+          className="chart-fill"
+          style={{ fill: `url(#${fillId})` }}
+        />
+        <path
+          d={line}
+          className="chart-line"
+          style={{ stroke: `url(#${strokeId})` }}
+        />
         <circle cx={coords.at(-1)[0]} cy={coords.at(-1)[1]} r="4" className="chart-dot" />
         <text x="3" y={pad.top + 4}>{number(max, 1)}</text>
         <text x="3" y={pad.top + innerHeight}>{number(min, 1)}</text>
@@ -118,7 +137,11 @@ function App() {
           return [...current, data].slice(-MAX_LIVE_POINTS);
         });
       }
-      if (sessionStart === null && Number.isFinite(Number(data.energy))) setSessionStart(Number(data.energy));
+      setSessionStart((start) =>
+        start === null && Number.isFinite(Number(data.energy))
+          ? Number(data.energy)
+          : start
+      );
     } catch {
       setApiOnline(false);
     }
@@ -198,18 +221,18 @@ function App() {
       <aside className={`sidebar ${mobileNav ? "is-open" : ""}`}>
         <div className="brand"><span className="brand-mark"><Icon name="bolt" /></span><span>Grid<span>Wise</span></span></div>
         <div className="workspace"><span className="workspace-icon"><Icon name="grid" size={15} /></span><div><small>WORKSPACE</small><strong>Energy monitor</strong></div><Icon name="chevron" size={15} /></div>
-        <nav><p className="nav-label">MONITOR</p>{navItems.map(([route, label, icon]) => <button className={page === route ? "nav-item active" : "nav-item"} key={route} onClick={() => navigate(route)}><Icon name={icon}/><span>{label}</span>{route === "history" && <Icon name="chevron" size={15}/>}</button>)}</nav>
-        <div className="sidebar-bottom"><p className="nav-label">SYSTEM</p><button className="nav-item"><Icon name="settings"/><span>Settings</span></button><div className="source-card"><span className="source-dot"></span><div><small>DATA SOURCE</small><strong>{live?.is_simulated !== false ? "Synthetic demo" : "ESP32 / PZEM"}</strong></div></div></div>
+        <nav><p className="nav-label">MONITOR</p>{navItems.map(([route, label, icon]) => <button className={page === route ? "nav-item active" : "nav-item"} key={route} onClick={() => navigate(route)}><Icon name={icon} /><span>{label}</span>{route === "history" && <Icon name="chevron" size={15} />}</button>)}</nav>
+        <div className="sidebar-bottom"><p className="nav-label">SYSTEM</p><button className="nav-item"><Icon name="settings" /><span>Settings</span></button><div className="source-card"><span className="source-dot"></span><div><small>DATA SOURCE</small><strong>{live?.is_simulated !== false ? "Synthetic demo" : "ESP32 / PZEM"}</strong></div></div></div>
       </aside>
 
       <main>
-        <header className="topbar"><button className="mobile-menu" onClick={() => setMobileNav((open) => !open)} aria-label="Open navigation"><Icon name="menu" /></button><div className="breadcrumb"><span>Energy monitor</span><Icon name="chevron" size={14}/><strong>{pageTitles[page] || "Overview"}</strong></div><div className="topbar-actions"><div className={`status-pill ${status.toLowerCase()}`}><i></i><span>{status}</span>{live?.data_age_seconds !== null && live?.data_age_seconds !== undefined && <small>{Math.round(live.data_age_seconds)}s ago</small>}</div><div className="avatar">GW</div></div></header>
+        <header className="topbar"><button className="mobile-menu" onClick={() => setMobileNav((open) => !open)} aria-label="Open navigation"><Icon name="menu" /></button><div className="breadcrumb"><span>Energy monitor</span><Icon name="chevron" size={14} /><strong>{pageTitles[page] || "Overview"}</strong></div><div className="topbar-actions"><div className={`status-pill ${status.toLowerCase()}`}><i></i><span>{status}</span>{live?.data_age_seconds !== null && live?.data_age_seconds !== undefined && <small>{Math.round(live.data_age_seconds)}s ago</small>}</div><div className="avatar">GW</div></div></header>
 
         <section className={`content page-${page}`} id="overview">
           <section className="route-page live-page">
             <div className="page-heading"><div><p className="eyebrow">REAL-TIME STREAM</p><h1>Live telemetry</h1><p>Incoming measurements update automatically every second.</p></div><div className="last-read"><span>LAST MEASUREMENT</span><strong>{compactTime(live?.last_update)}</strong></div></div>
             <section className="metric-grid"><article className="metric-card primary"><div className="metric-top"><span>Active power</span><span className="metric-icon"><Icon name="bolt" /></span></div><strong>{number(live?.power, 0)} <small>W</small></strong><p>{live?.is_fresh ? "Fresh reading received" : "Waiting for a fresh sample"}</p></article><article className="metric-card"><div className="metric-top"><span>Voltage</span><span className="metric-icon muted-icon"><Icon name="pulse" /></span></div><strong>{number(live?.voltage, 1)} <small>V</small></strong><p>Nominal supply voltage</p></article><article className="metric-card"><div className="metric-top"><span>Current</span><span className="metric-icon muted-icon"><Icon name="chart" /></span></div><strong>{number(live?.current, 3)} <small>A</small></strong><p>Present circuit draw</p></article><article className="metric-card"><div className="metric-top"><span>Frequency</span><span className="metric-icon muted-icon">Hz</span></div><strong>{number(live?.frequency, 1)} <small>Hz</small></strong><p>Line frequency</p></article></section>
-            <section className="dashboard-grid live-dashboard"><article className="panel trend-panel"><div className="panel-header"><div><h2>Live consumption</h2><p>Last {MAX_LIVE_POINTS} incoming measurements</p></div><div className="metric-tabs">{["power", "voltage", "current", "energy"].map((metric) => <button key={metric} className={chartMetric === metric ? "active" : ""} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><LineChart points={livePoints} metric={chartMetric} /></article><article className="panel efficiency-panel"><div className="panel-header"><div><h2>Load quality</h2><p>Power factor performance</p></div><span className={Number(live?.power_factor) >= .85 ? "health-tag good" : "health-tag warning"}>{Number(live?.power_factor) >= .85 ? "Good" : "Review"}</span></div><Gauge value={live?.power_factor}/><div className="quality-info"><span>Power factor</span><strong>{number(live?.power_factor, 2)}</strong><span>Data source</span><strong>{live?.is_simulated !== false ? "Synthetic demo" : "ESP32 / PZEM"}</strong></div></article></section>
+            <section className="dashboard-grid live-dashboard"><article className="panel trend-panel"><div className="panel-header"><div><h2>Live consumption</h2><p>Last {MAX_LIVE_POINTS} incoming measurements</p></div><div className="metric-tabs">{["power", "voltage", "current", "energy"].map((metric) => <button key={metric} className={chartMetric === metric ? "active" : ""} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><LineChart points={livePoints} metric={chartMetric} /></article><article className="panel efficiency-panel"><div className="panel-header"><div><h2>Load quality</h2><p>Power factor performance</p></div><span className={Number(live?.power_factor) >= .85 ? "health-tag good" : "health-tag warning"}>{Number(live?.power_factor) >= .85 ? "Good" : "Review"}</span></div><Gauge value={live?.power_factor} /><div className="quality-info"><span>Power factor</span><strong>{number(live?.power_factor, 2)}</strong><span>Data source</span><strong>{live?.is_simulated !== false ? "Synthetic demo" : "ESP32 / PZEM"}</strong></div></article></section>
           </section>
 
           <section className="route-page trends-page">
@@ -217,21 +240,21 @@ function App() {
             <section className="panel trend-panel"><div className="panel-header"><div><h2>Historical trend</h2><p>MySQL measurements grouped for readable analysis</p></div><div className="metric-tabs">{["power", "voltage", "current", "energy"].map((metric) => <button key={metric} className={chartMetric === metric ? "active" : ""} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><LineChart points={historyPoints} metric={chartMetric} height={340} /></section>
             <div className="history-summary trend-summary"><div><span>AVERAGE POWER</span><strong>{number(average(historyPower), 1)} W</strong></div><div><span>ENERGY USED</span><strong>{number(energyRange, 5)} kWh</strong></div><div><span>DATA SOURCE</span><strong>{historyMeta?.source || "Synthetic"}</strong></div><div><span>DISPLAY</span><strong>{historyMeta?.aggregated ? `${historyMeta.displayed_count} grouped` : "Raw readings"}</strong></div></div>
           </section>
-          {live?.is_simulated !== false && <div className="demo-banner"><Icon name="bolt" size={15}/><span><strong>Demo environment</strong> · all readings are synthetic and stored in MySQL</span><span className="demo-profile">{profileName}</span></div>}
+          {live?.is_simulated !== false && <div className="demo-banner"><Icon name="bolt" size={15} /><span><strong>Demo environment</strong> · all readings are synthetic and stored in MySQL</span><span className="demo-profile">{profileName}</span></div>}
           <div className="page-heading"><div><p className="eyebrow">LIVE ENERGY TELEMETRY</p><h1>Good evening, Ayush.</h1><p>Monitor the current load, energy use, and data quality at a glance.</p></div><div className="last-read"><span>LAST MEASUREMENT</span><strong>{compactTime(live?.last_update)}</strong></div></div>
 
           <section className="metric-grid">
             <article className="metric-card primary"><div className="metric-top"><span>Active power</span><span className="metric-icon"><Icon name="bolt" /></span></div><strong>{number(live?.power, 0)} <small>W</small></strong><p>{live?.is_fresh ? "Current five-sample average" : "Waiting for a fresh sample"}</p><div className="mini-trend"><span style={{ width: `${Math.min(100, Number(live?.power || 0) / 23)}%` }}></span></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Session energy</span><span className="metric-icon muted-icon"><Icon name="pulse" /></span></div><strong>{number(energyDelta, 5)} <small>kWh</small></strong><p>Since this browser session started</p></article>
-            <article className="metric-card"><div className="metric-top"><span>Session cost</span><span className="metric-icon muted-icon">₹</span></div><strong>₹{number(sessionCost, 2)}</strong><p><label>Tariff <input value={tariff} type="number" min="0" step=".5" onChange={(event) => setTariff(event.target.value)} /> / kWh</label></p></article>
+            <article className="metric-card"><div className="metric-top"><span>Session energy</span><span className="metric-icon muted-icon"><Icon name="pulse" /></span></div><strong>{number(energyDelta, 8)} <small>kWh</small></strong><p>Since this browser session started</p></article>
+            <article className="metric-card"><div className="metric-top"><span>Session cost</span><span className="metric-icon muted-icon">₹</span></div><strong>₹{number(sessionCost, 4)}</strong><p><label>Tariff <input value={tariff} type="number" min="0" step=".5" onChange={(event) => setTariff(event.target.value)} /> / kWh</label></p></article>
             <article className="metric-card"><div className="metric-top"><span>Power factor</span><span className="metric-icon muted-icon"><Icon name="chart" /></span></div><strong>{number(live?.power_factor, 2)}</strong><p>{Number(live?.power_factor) >= .85 ? "Within the preferred range" : "Check the load efficiency"}</p></article>
           </section>
 
           <section className="dashboard-grid">
             <article className="panel trend-panel"><div className="panel-header"><div><h2>Live consumption</h2><p>Last {MAX_LIVE_POINTS} incoming measurements</p></div><div className="metric-tabs">{["power", "voltage", "current", "energy"].map((metric) => <button key={metric} className={chartMetric === metric ? "active" : ""} onClick={() => setChartMetric(metric)}>{metric}</button>)}</div></div><LineChart points={livePoints} metric={chartMetric} /></article>
-            <article className="panel efficiency-panel"><div className="panel-header"><div><h2>Load quality</h2><p>Power factor performance</p></div><span className={Number(live?.power_factor) >= .85 ? "health-tag good" : "health-tag warning"}>{Number(live?.power_factor) >= .85 ? "Good" : "Review"}</span></div><Gauge value={live?.power_factor}/><div className="quality-info"><span>Voltage</span><strong>{number(live?.voltage, 1)} V</strong><span>Frequency</span><strong>{number(live?.frequency, 1)} Hz</strong></div></article>
+            <article className="panel efficiency-panel"><div className="panel-header"><div><h2>Load quality</h2><p>Power factor performance</p></div><span className={Number(live?.power_factor) >= .85 ? "health-tag good" : "health-tag warning"}>{Number(live?.power_factor) >= .85 ? "Good" : "Review"}</span></div><Gauge value={live?.power_factor} /><div className="quality-info"><span>Voltage</span><strong>{number(live?.voltage, 1)} V</strong><span>Frequency</span><strong>{number(live?.frequency, 1)} Hz</strong></div></article>
             <article className="panel stat-panel"><div className="panel-header"><div><h2>Live statistics</h2><p>Visible browser session</p></div><Icon name="dot" /></div><div className="statistics"><div><span>Average load</span><strong>{number(averagePower, 1)} W</strong></div><div><span>Peak load</span><strong>{number(maxPower, 1)} W</strong></div><div><span>Peak current</span><strong>{number(Math.max(0, ...livePoints.map((point) => Number(point.current || 0))), 3)} A</strong></div><div><span>Samples</span><strong>{livePoints.length}</strong></div></div></article>
-            <article className="panel alert-panel"><div className="panel-header"><div><h2>System status</h2><p>Telemetry health and guidance</p></div><span className={`status-indicator ${status.toLowerCase()}`}></span></div><div className={`alert-copy ${status.toLowerCase()}`}><Icon name={status === "Live" ? "bolt" : "clock"}/><div><strong>{status === "Live" ? "Telemetry is flowing normally" : status === "Stale" ? "Telemetry needs attention" : "Awaiting telemetry"}</strong><p>{status === "Live" ? `${profileName} data is current and validated.` : status === "Stale" ? "The server is reachable, but no new reading has arrived within the freshness window." : "Start the simulator; the portal will update automatically."}</p></div></div></article>
+            <article className="panel alert-panel"><div className="panel-header"><div><h2>System status</h2><p>Telemetry health and guidance</p></div><span className={`status-indicator ${status.toLowerCase()}`}></span></div><div className={`alert-copy ${status.toLowerCase()}`}><Icon name={status === "Live" ? "bolt" : "clock"} /><div><strong>{status === "Live" ? "Telemetry is flowing normally" : status === "Stale" ? "Telemetry needs attention" : "Awaiting telemetry"}</strong><p>{status === "Live" ? `${profileName} data is current and validated.` : status === "Stale" ? "The server is reachable, but no new reading has arrived within the freshness window." : "Start the simulator; the portal will update automatically."}</p></div></div></article>
           </section>
 
           {live?.is_simulated !== false && <section className="profile-section"><div><p className="eyebrow">PRESENTATION CONTROLS</p><h2>Synthetic load profile</h2><p>Select a realistic virtual load; the simulator applies it before its next reading.</p></div><div className="profile-options">{[["idle", "Idle"], ["laptop", "Laptop"], ["heater", "Heater"], ["high_load_demo", "High load"]].map(([value, label]) => <button key={value} className={live?.scenario === value ? "selected" : ""} onClick={() => switchScenario(value)} disabled={scenarioLoading}>{label}</button>)}</div></section>}

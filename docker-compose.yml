@@ -4,16 +4,15 @@ services:
     container_name: gridwise_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: gridwise
-      MYSQL_USER: gridwise_user
-      MYSQL_PASSWORD: gridwise_pass
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gridwise_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gridwise}
+      MYSQL_USER: ${MYSQL_USER:-gridwise_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-gridwise_pass}
     volumes:
       - gridwise_data:/var/lib/mysql
+    # MySQL is intentionally available only to Compose services, not on the host network.
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "gridwise_user", "-pgridwise_pass"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -28,18 +27,18 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 3306
-      DB_DATABASE: gridwise
-      DB_USER: gridwise_user
-      DB_PASSWORD: gridwise_pass
+      DB_DATABASE: ${MYSQL_DATABASE:-gridwise}
+      DB_USER: ${MYSQL_USER:-gridwise_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-gridwise_pass}
       DATA_MODE: ${GRIDWISE_DATA_MODE:-demo}
       SERVER_PORT: 8000
       STALE_AFTER_SECONDS: 10
-    ports:
-      # Avoids colliding with an existing local development server on port 8000.
-      - "${GRIDWISE_APP_PORT:-8080}:8000"
     depends_on:
       db:
         condition: service_healthy
+    ports:
+      # Avoids colliding with an existing local development server on port 8000.
+      - "${GRIDWISE_APP_PORT:-8080}:8000"
 
   simulator:
     build:
