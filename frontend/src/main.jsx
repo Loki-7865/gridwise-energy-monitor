@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useId } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import "./pages.css";
@@ -42,6 +42,11 @@ function Icon({ name, size = 18 }) {
 }
 
 function LineChart({ points, metric, height = 280 }) {
+  // Each chart instance needs unique SVG gradient IDs.
+  const chartId = useId().replace(/:/g, "");
+  const fillId = `${chartId}-chartFill`;
+  const strokeId = `${chartId}-chartStroke`;
+
   const values = points.map((point) => Number(point[metric] || 0));
   if (!values.length) return <div className="chart-empty">Waiting for telemetry</div>;
   const min = Math.min(...values);
@@ -66,12 +71,26 @@ function LineChart({ points, metric, height = 280 }) {
       <div className="chart-key"><span>{labels[metric]}</span><strong>{number(values.at(-1), metric === "current" ? 3 : metric === "energy" ? 5 : 1)} {units[metric]}</strong></div>
       <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={`${labels[metric]} trend`}>
         <defs>
-          <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#4777ff" stopOpacity=".35"/><stop offset="1" stopColor="#4777ff" stopOpacity="0"/></linearGradient>
-          <linearGradient id="chartStroke" x1="0" x2="1"><stop stopColor="#a8b9ff"/><stop offset="1" stopColor="#4d7dff"/></linearGradient>
+          <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
+            <stop stopColor="#4777ff" stopOpacity=".35" />
+            <stop offset="1" stopColor="#4777ff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={strokeId} x1="0" x2="1">
+            <stop stopColor="#a8b9ff" />
+            <stop offset="1" stopColor="#4d7dff" />
+          </linearGradient>
         </defs>
         {[0, 1, 2, 3].map((lineIndex) => <line key={lineIndex} x1={pad.left} x2={width - pad.right} y1={pad.top + innerHeight * lineIndex / 3} y2={pad.top + innerHeight * lineIndex / 3} className="grid-line" />)}
-        <path d={fill} className="chart-fill" />
-        <path d={line} className="chart-line" />
+        <path
+          d={fill}
+          className="chart-fill"
+          style={{ fill: `url(#${fillId})` }}
+        />
+        <path
+          d={line}
+          className="chart-line"
+          style={{ stroke: `url(#${strokeId})` }}
+        />
         <circle cx={coords.at(-1)[0]} cy={coords.at(-1)[1]} r="4" className="chart-dot" />
         <text x="3" y={pad.top + 4}>{number(max, 1)}</text>
         <text x="3" y={pad.top + innerHeight}>{number(min, 1)}</text>
